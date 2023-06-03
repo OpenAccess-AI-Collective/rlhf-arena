@@ -179,7 +179,14 @@ with gr.Blocks() as arena:
                     - This Space runs on CPU only, and uses GGML with GPU support via Runpod Serverless.
                     - Due to limitations of Runpod Serverless, it cannot stream responses immediately
                     - Responses WILL take AT LEAST 30 seconds to respond, probably longer   
-                    - For now, this is single turn only, 
+                    - For now, this is single turn only
+                    - For now, Hermes 13B on the left, Manticore on the right.
+                    """)
+    with gr.Tab("Leaderboard"):
+        with gr.Column():
+            gr.Markdown(f"""
+                    ### TBD
+                    - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
                     """)
     with gr.Tab("Chatbot"):
         with gr.Row():
