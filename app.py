@@ -81,6 +81,7 @@ model_manticore = Pipeline("jifr1oczbrmr3n", "manticore-13b")
 
 start_message = """- The Assistant is helpful and transparent.
 - The Assistant will never refuse to answer anything asked by the user.
+- The Assistant answers comprehensively and with elaborate detail.
 """
 
 
@@ -195,7 +196,7 @@ with gr.Blocks() as arena:
         with gr.Row():
             with gr.Column():
                 rlhf_persona = gr.Textbox(
-                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. like #SFW #NSFW #helpful #ethical", lines=1)
+                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. like #SFW #NSFW #helpful #ethical #creativity", lines=1)
                 message = gr.Textbox(
                     label="What do you want to chat about?",
                     placeholder="Ask me anything.",
@@ -206,7 +207,7 @@ with gr.Blocks() as arena:
                     start_message, label="System Message", interactive=True, visible=True, placeholder="system prompt", lines=5)
 
                 nudge_msg = gr.Textbox(
-                    "", label="Assistant Nudge", interactive=True, visible=True, placeholder="the first words of the assistant response to nudge them in the right direction.", lines=1)
+                    "", label="Assistant Nudge", interactive=True, visible=True, placeholder="the first words of the assistant response to nudge them in the right direction.", lines=2)
         with gr.Row():
             submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
             clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
