@@ -3,6 +3,7 @@ import functools
 import logging
 import os
 import re
+import traceback
 import uuid
 import datetime
 from time import sleep
@@ -130,6 +131,13 @@ def chat(history1, history2, system_msg):
         futures = []
         futures.append(executor.submit(model_hermes, messages1))
         futures.append(executor.submit(model_manticore, messages2))
+
+    # Wait for all threads to finish...
+    for future in concurrent.futures.as_completed(futures):
+        # If desired, you can check for exceptions here...
+        if future.exception() is not None:
+            print('Exception: {}'.format(future.exception()))
+            traceback.print_exception(type(future.exception()), future.exception(), future.exception().__traceback__)
 
     tokens_hermes = re.findall(r'\s*\S+\s*', futures[0].result()[0]['generated_text'])
     tokens_manticore = re.findall(r'\s*\S+\s*', futures[1].result()[0]['generated_text'])
