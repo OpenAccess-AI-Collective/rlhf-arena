@@ -1,13 +1,22 @@
 import concurrent
+import functools
 import logging
 import os
 import re
+import uuid
+import datetime
 from time import sleep
 
+import boto3
 import gradio as gr
 import requests
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+
+# Create a DynamoDB client
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+# Get a reference to the table
+table = dynamodb.Table('oaaic_chatbot_arena')
 
 class Pipeline:
     prefer_async = True
@@ -138,9 +147,29 @@ def chat(history1, history2, system_msg):
         sleep(0.15)
 
 
-def chosen_one(preferred_history, alt_history):
-    pass
+def chosen_one(label, choice0_history, choice1_history, system_msg):
+    # Generate a uuid for each submission
+    arena_battle_id = str(uuid.uuid4())
 
+    # Get the current timestamp
+    timestamp = datetime.datetime.now().isoformat()
+
+    # Put the item in the table
+    table.put_item(
+        Item={
+            'arena_battle_id': arena_battle_id,
+            'timestamp': timestamp,
+            'system_msg': system_msg,
+            'choice0_name': model_hermes.name,
+            'choice0': choice0_history,
+            'choice1_name': model_manticore.name,
+            'choice1': choice1_history,
+            'label': label
+        }
+    )
+
+chosen_one_first = functools.partial(chosen_one, 0)
+chosen_one_second = functools.partial(chosen_one, 1)
 
 with gr.Blocks() as arena:
     with gr.Row():
@@ -150,6 +179,7 @@ with gr.Blocks() as arena:
                     - This Space runs on CPU only, and uses GGML with GPU support via Runpod Serverless.
                     - Due to limitations of Runpod Serverless, it cannot stream responses immediately
                     - Responses WILL take AT LEAST 30 seconds to respond, probably longer   
+                    - For now, this is single turn only, 
                     """)
     with gr.Tab("Chatbot"):
         with gr.Row():
@@ -205,7 +235,7 @@ with gr.Blocks() as arena:
         )
 
         choose1_click_event = choose1.click(
-            fn=chosen_one, inputs=[chatbot1, chatbot2], outputs=[], queue=True
+            fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=True, interactive=True),
@@ -220,7 +250,7 @@ with gr.Blocks() as arena:
         )
 
         choose2_click_event = choose2.click(
-            fn=chosen_one, inputs=[chatbot2, chatbot1], outputs=[], queue=True
+            fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=True, interactive=True),
