@@ -183,12 +183,6 @@ with gr.Blocks() as arena:
                     - For now, this is single turn only
                     - For now, Hermes 13B on the left, Manticore on the right.
                     """)
-    with gr.Tab("Leaderboard"):
-        with gr.Column():
-            gr.Markdown(f"""
-                    ### TBD
-                    - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
-                    """)
     with gr.Tab("Chatbot"):
         with gr.Row():
             with gr.Column():
@@ -216,63 +210,69 @@ with gr.Blocks() as arena:
         with gr.Row():
             submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
             clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
+    with gr.Tab("Leaderboard"):
+        with gr.Column():
+            gr.Markdown(f"""
+                    ### TBD
+                    - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
+                    """)
 
-        clear.click(lambda: None, None, chatbot1, queue=False)
-        clear.click(lambda: None, None, chatbot2, queue=False)
-        clear.click(lambda: None, None, message, queue=False)
-        clear.click(lambda: None, None, nudge_msg, queue=False)
+    clear.click(lambda: None, None, chatbot1, queue=False)
+    clear.click(lambda: None, None, chatbot2, queue=False)
+    clear.click(lambda: None, None, message, queue=False)
+    clear.click(lambda: None, None, nudge_msg, queue=False)
 
-        submit_click_event = submit.click(
-            lambda *args: (
-                gr.update(visible=False, interactive=False),
-                gr.update(visible=False),
-                gr.update(visible=False),
-            ),
-            inputs=[], outputs=[message, clear, submit], queue=True
-        ).then(
-            fn=user, inputs=[message, nudge_msg, chatbot1, chatbot2], outputs=[message, nudge_msg, chatbot1, chatbot2], queue=True
-        ).then(
-            fn=chat, inputs=[chatbot1, chatbot2, system_msg], outputs=[chatbot1, chatbot2, message], queue=True
-        ).then(
-            lambda *args: (
-                gr.update(visible=False, interactive=False),
-                gr.update(visible=True),
-                gr.update(visible=True),
-                gr.update(visible=False),
-                gr.update(visible=False),
-            ),
-            inputs=[message, nudge_msg, system_msg], outputs=[message, choose1, choose2, clear, submit], queue=True
-        )
+    submit_click_event = submit.click(
+        lambda *args: (
+            gr.update(visible=False, interactive=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+        ),
+        inputs=[], outputs=[message, clear, submit], queue=True
+    ).then(
+        fn=user, inputs=[message, nudge_msg, chatbot1, chatbot2], outputs=[message, nudge_msg, chatbot1, chatbot2], queue=True
+    ).then(
+        fn=chat, inputs=[chatbot1, chatbot2, system_msg], outputs=[chatbot1, chatbot2, message], queue=True
+    ).then(
+        lambda *args: (
+            gr.update(visible=False, interactive=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=False),
+            gr.update(visible=False),
+        ),
+        inputs=[message, nudge_msg, system_msg], outputs=[message, choose1, choose2, clear, submit], queue=True
+    )
 
-        choose1_click_event = choose1.click(
-            fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
-        ).then(
-            lambda *args: (
-                gr.update(visible=True, interactive=True),
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=True),
-                gr.update(visible=True),
-                None,
-                None,
-            ),
-            inputs=[], outputs=[message, choose1, choose2, clear, submit, chatbot1, chatbot2], queue=True
-        )
+    choose1_click_event = choose1.click(
+        fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
+    ).then(
+        lambda *args: (
+            gr.update(visible=True, interactive=True),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            None,
+            None,
+        ),
+        inputs=[], outputs=[message, choose1, choose2, clear, submit, chatbot1, chatbot2], queue=True
+    )
 
-        choose2_click_event = choose2.click(
-            fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
-        ).then(
-            lambda *args: (
-                gr.update(visible=True, interactive=True),
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=True),
-                gr.update(visible=True),
-                None,
-                None,
-            ),
-            inputs=[], outputs=[message, choose1, choose2, clear, submit, chatbot1, chatbot2], queue=True
-        )
+    choose2_click_event = choose2.click(
+        fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
+    ).then(
+        lambda *args: (
+            gr.update(visible=True, interactive=True),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            None,
+            None,
+        ),
+        inputs=[], outputs=[message, choose1, choose2, clear, submit, chatbot1, chatbot2], queue=True
+    )
 
 
 arena.queue(concurrency_count=2, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
