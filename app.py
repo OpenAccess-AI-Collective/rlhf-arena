@@ -277,4 +277,4 @@ with gr.Blocks() as arena:
     )
 
 
-arena.queue(concurrency_count=2, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
+arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
