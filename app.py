@@ -147,7 +147,7 @@ def chat(history1, history2, system_msg):
         sleep(0.15)
 
 
-def chosen_one(label, choice0_history, choice1_history, system_msg):
+def chosen_one(label, choice0_history, choice1_history, system_msg, rlhf_persona):
     # Generate a uuid for each submission
     arena_battle_id = str(uuid.uuid4())
 
@@ -164,7 +164,8 @@ def chosen_one(label, choice0_history, choice1_history, system_msg):
             'choice0': choice0_history,
             'choice1_name': model_manticore.name,
             'choice1': choice1_history,
-            'label': label
+            'label': label,
+            'rlhf_persona': rlhf_persona,
         }
     )
 
@@ -199,6 +200,8 @@ with gr.Blocks() as arena:
             choose2 = gr.Button(value="Prefer right", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
             with gr.Column():
+                rlhf_persona = gr.Textbox(
+                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. like #SFW #NSFW #helpful #ethical", lines=1)
                 message = gr.Textbox(
                     label="What do you want to chat about?",
                     placeholder="Ask me anything.",
@@ -242,7 +245,7 @@ with gr.Blocks() as arena:
         )
 
         choose1_click_event = choose1.click(
-            fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg], outputs=[], queue=True
+            fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=True, interactive=True),
@@ -257,7 +260,7 @@ with gr.Blocks() as arena:
         )
 
         choose2_click_event = choose2.click(
-            fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg], outputs=[], queue=True
+            fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=True, interactive=True),
