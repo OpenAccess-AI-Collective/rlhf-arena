@@ -148,7 +148,7 @@ def chat(history1, history2, system_msg):
         sleep(0.15)
 
 
-def chosen_one(label, choice0_history, choice1_history, system_msg, rlhf_persona):
+def chosen_one(label, choice0_history, choice1_history, system_msg, nudge_msg, rlhf_persona):
     # Generate a uuid for each submission
     arena_battle_id = str(uuid.uuid4())
 
@@ -161,6 +161,7 @@ def chosen_one(label, choice0_history, choice1_history, system_msg, rlhf_persona
             'arena_battle_id': arena_battle_id,
             'timestamp': timestamp,
             'system_msg': system_msg,
+            'nudge_prefix': nudge_msg,
             'choice0_name': model_hermes.name,
             'choice0': choice0_history,
             'choice1_name': model_manticore.name,
@@ -246,7 +247,7 @@ with gr.Blocks() as arena:
     )
 
     choose1_click_event = choose1.click(
-        fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
+        fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona], outputs=[], queue=True
     ).then(
         lambda *args: (
             gr.update(visible=True, interactive=True),
@@ -261,7 +262,7 @@ with gr.Blocks() as arena:
     )
 
     choose2_click_event = choose2.click(
-        fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, rlhf_persona], outputs=[], queue=True
+        fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona], outputs=[], queue=True
     ).then(
         lambda *args: (
             gr.update(visible=True, interactive=True),
