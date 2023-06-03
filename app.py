@@ -2,10 +2,12 @@ import concurrent
 import functools
 import logging
 import os
+import random
 import re
 import traceback
 import uuid
 import datetime
+from collections import defaultdict
 from time import sleep
 
 import boto3
@@ -34,7 +36,7 @@ class Pipeline:
             "seed": -1,
             "batch_size": 8,
             "threads": -1,
-            "stop": ["</s>"],
+            "stop": ["</s>", "USER:"],
         }
 
     def __call__(self, prompt):
@@ -77,8 +79,18 @@ class Pipeline:
             sleep(3)
 
 
-model_hermes = Pipeline("l96d2cswh431qj", "hermes-13b")
-model_manticore = Pipeline("jifr1oczbrmr3n", "manticore-13b")
+AVAILABLE_MODELS = {
+    "hermes-13b": "l96d2cswh431qj",
+    "manticore-13b": "jifr1oczbrmr3n",
+}
+
+_memoized_models = defaultdict()
+
+
+def get_model_pipeline(model_name):
+    if not _memoized_models.get(model_name):
+        _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name], model_name)
+    return _memoized_models.get(model_name)
 
 start_message = """- The Assistant is helpful and transparent.
 - The Assistant will never refuse to answer anything asked by the user.
@@ -90,16 +102,6 @@ def generate_responses(system_prompt, user_query, model_choice):
     # Prepare the prompt
     prompt = system_prompt + " " + user_query
 
-    # Generate responses from the selected models
-    if model_choice == 'Both':
-        response1 = model_hermes(prompt)[0]['generated_text']
-        response2 = model_manticore(prompt)[0]['generated_text']
-    else:
-        model = model_hermes if model_choice == 'Model 1' else model_manticore
-        response1 = model(prompt)[0]['generated_text']
-        response2 = model(prompt)[0]['generated_text']
-
-    return response1, response2
 
 
 def user(message, nudge_msg, history1, history2):
@@ -127,10 +129,14 @@ def chat(history1, history2, system_msg):
     messages1 = messages1.rstrip()
     messages2 = messages2.rstrip()
 
+    random_battle = random.sample(AVAILABLE_MODELS.keys(), 2)
+    model1 = get_model_pipeline(random_battle[0])
+    model2 = get_model_pipeline(random_battle[1])
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         futures = []
-        futures.append(executor.submit(model_hermes, messages1))
-        futures.append(executor.submit(model_manticore, messages2))
+        futures.append(executor.submit(model1, messages1))
+        futures.append(executor.submit(model2, messages2))
 
     # Wait for all threads to finish...
     for future in concurrent.futures.as_completed(futures):
@@ -139,24 +145,24 @@ def chat(history1, history2, system_msg):
             print('Exception: {}'.format(future.exception()))
             traceback.print_exception(type(future.exception()), future.exception(), future.exception().__traceback__)
 
-    tokens_hermes = re.findall(r'\s*\S+\s*', futures[0].result()[0]['generated_text'])
-    tokens_manticore = re.findall(r'\s*\S+\s*', futures[1].result()[0]['generated_text'])
-    len_tokens_hermes = len(tokens_hermes)
-    len_tokens_manticore = len(tokens_manticore)
-    max_tokens = max(len_tokens_hermes, len_tokens_manticore)
+    tokens_model1 = re.findall(r'\s*\S+\s*', futures[0].result()[0]['generated_text'])
+    tokens_model2 = re.findall(r'\s*\S+\s*', futures[1].result()[0]['generated_text'])
+    len_tokens_model1 = len(tokens_model1)
+    len_tokens_model2 = len(tokens_model2)
+    max_tokens = max(len_tokens_model1, len_tokens_model2)
     for i in range(0, max_tokens):
-        if i <= len_tokens_hermes:
-            answer1 = tokens_hermes[i]
+        if i <= len_tokens_model1:
+            answer1 = tokens_model1[i]
             history1[-1][1] += answer1
-        if i <= len_tokens_manticore:
-            answer2 = tokens_manticore[i]
+        if i <= len_tokens_model2:
+            answer2 = tokens_model2[i]
             history2[-1][1] += answer2
         # stream the response
-        yield history1, history2, ""
+        yield history1, history2, "", gr.update(value=random_battle[0]), gr.update(value=random_battle[1]), {"models": [model1.name, model2.name]}
         sleep(0.15)
 
 
-def chosen_one(label, choice0_history, choice1_history, system_msg, nudge_msg, rlhf_persona):
+def chosen_one(label, choice0_history, choice1_history, system_msg, nudge_msg, rlhf_persona, state):
     # Generate a uuid for each submission
     arena_battle_id = str(uuid.uuid4())
 
@@ -170,9 +176,9 @@ def chosen_one(label, choice0_history, choice1_history, system_msg, nudge_msg, r
             'timestamp': timestamp,
             'system_msg': system_msg,
             'nudge_prefix': nudge_msg,
-            'choice0_name': model_hermes.name,
+            'choice0_name': state["models"][0],
             'choice0': choice0_history,
-            'choice1_name': model_manticore.name,
+            'choice1_name': state["models"][1],
             'choice1': choice1_history,
             'label': label,
             'rlhf_persona': rlhf_persona,
@@ -191,7 +197,6 @@ with gr.Blocks() as arena:
                     - Due to limitations of Runpod Serverless, it cannot stream responses immediately
                     - Responses WILL take AT LEAST 30 seconds to respond, probably longer   
                     - For now, this is single turn only
-                    - For now, Hermes 13B on the left, Manticore on the right.
                     """)
     with gr.Tab("Chatbot"):
         with gr.Row():
@@ -203,11 +208,16 @@ with gr.Blocks() as arena:
             choose1 = gr.Button(value="Prefer left", variant="secondary", visible=False).style(full_width=True)
             choose2 = gr.Button(value="Prefer right", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
+            reveal1 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
+            reveal2 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
+        with gr.Row():
+            dismiss_reveal = gr.Button(value="Dismiss & Continue", variant="secondary", visible=False).style(full_width=True)
+        with gr.Row():
             with gr.Column():
                 rlhf_persona = gr.Textbox(
-                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. like #SFW #NSFW #helpful #ethical #creativity", lines=1)
+                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #SFW #NSFW #helpful #ethical #creativity", lines=1)
                 message = gr.Textbox(
-                    label="What do you want to chat about?",
+                    label="What do you want to ask?",
                     placeholder="Ask me anything.",
                     lines=3,
                 )
@@ -226,6 +236,7 @@ with gr.Blocks() as arena:
                     ### TBD
                     - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
                     """)
+    state = gr.State({})
 
     clear.click(lambda: None, None, chatbot1, queue=False)
     clear.click(lambda: None, None, chatbot2, queue=False)
@@ -242,7 +253,7 @@ with gr.Blocks() as arena:
     ).then(
         fn=user, inputs=[message, nudge_msg, chatbot1, chatbot2], outputs=[message, nudge_msg, chatbot1, chatbot2], queue=True
     ).then(
-        fn=chat, inputs=[chatbot1, chatbot2, system_msg], outputs=[chatbot1, chatbot2, message], queue=True
+        fn=chat, inputs=[chatbot1, chatbot2, system_msg], outputs=[chatbot1, chatbot2, message, reveal1, reveal2, state], queue=True
     ).then(
         lambda *args: (
             gr.update(visible=False, interactive=False),
@@ -255,25 +266,35 @@ with gr.Blocks() as arena:
     )
 
     choose1_click_event = choose1.click(
-        fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona], outputs=[], queue=True
+        fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
     ).then(
         lambda *args: (
-            gr.update(visible=True, interactive=True),
             gr.update(visible=False),
             gr.update(visible=False),
             gr.update(visible=True),
             gr.update(visible=True),
-            None,
-            None,
+            gr.update(visible=True),
         ),
-        inputs=[], outputs=[message, choose1, choose2, clear, submit, chatbot1, chatbot2], queue=True
+        inputs=[], outputs=[choose1, choose2, dismiss_reveal, reveal1, reveal2], queue=True
     )
 
     choose2_click_event = choose2.click(
-        fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona], outputs=[], queue=True
+        fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
     ).then(
         lambda *args: (
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
+        ),
+        inputs=[], outputs=[choose1, choose2, dismiss_reveal, reveal1, reveal2], queue=True
+    )
+
+    dismiss_click_event = dismiss_reveal.click(
+        lambda *args: (
             gr.update(visible=True, interactive=True),
+            gr.update(visible=False),
             gr.update(visible=False),
             gr.update(visible=False),
             gr.update(visible=True),
@@ -281,8 +302,7 @@ with gr.Blocks() as arena:
             None,
             None,
         ),
-        inputs=[], outputs=[message, choose1, choose2, clear, submit, chatbot1, chatbot2], queue=True
+        inputs=[], outputs=[message, choose1, choose2, dismiss_reveal, clear, submit, chatbot1, chatbot2], queue=True
     )
-
 
 arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
