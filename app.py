@@ -174,7 +174,7 @@ def chat(history1, history2, system_msg):
         sleep(0.15)
 
 
-def chosen_one(label, choice0_history, choice1_history, system_msg, nudge_msg, rlhf_persona, state):
+def chosen_one(label, choice1_history, choice2_history, system_msg, nudge_msg, rlhf_persona, state):
     # Generate a uuid for each submission
     arena_battle_id = str(uuid.uuid4())
 
@@ -188,17 +188,19 @@ def chosen_one(label, choice0_history, choice1_history, system_msg, nudge_msg, r
             'timestamp': timestamp,
             'system_msg': system_msg,
             'nudge_prefix': nudge_msg,
-            'choice0_name': state["models"][0],
-            'choice0': choice0_history,
-            'choice1_name': state["models"][1],
+            'choice1_name': state["models"][0],
             'choice1': choice1_history,
+            'choice2_name': state["models"][1],
+            'choice2': choice2_history,
             'label': label,
             'rlhf_persona': rlhf_persona,
         }
     )
 
-chosen_one_first = functools.partial(chosen_one, 0)
-chosen_one_second = functools.partial(chosen_one, 1)
+chosen_one_first = functools.partial(chosen_one, 1)
+chosen_one_second = functools.partial(chosen_one, 2)
+chosen_one_tie = functools.partial(chosen_one, 0)
+chosen_one_suck = functools.partial(chosen_one, 1)
 
 with gr.Blocks() as arena:
     with gr.Row():
@@ -217,8 +219,10 @@ with gr.Blocks() as arena:
             with gr.Column():
                 chatbot2 = gr.Chatbot()
         with gr.Row():
-            choose1 = gr.Button(value="Prefer left", variant="secondary", visible=False).style(full_width=True)
-            choose2 = gr.Button(value="Prefer right", variant="secondary", visible=False).style(full_width=True)
+            choose1 = gr.Button(value="👈 Prefer left", variant="secondary", visible=False).style(full_width=True)
+            choose2 = gr.Button(value="👉 Prefer right", variant="secondary", visible=False).style(full_width=True)
+            choose3 = gr.Button(value="🤝 Tie", variant="secondary", visible=False).style(full_width=True)
+            choose4 = gr.Button(value="👉 Both are bad", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
             reveal1 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
             reveal2 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
@@ -283,11 +287,13 @@ with gr.Blocks() as arena:
         lambda *args: (
             gr.update(visible=False),
             gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=True),
         ),
-        inputs=[], outputs=[choose1, choose2, dismiss_reveal, reveal1, reveal2], queue=True
+        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
     )
 
     choose2_click_event = choose2.click(
@@ -296,19 +302,49 @@ with gr.Blocks() as arena:
         lambda *args: (
             gr.update(visible=False),
             gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=True),
         ),
-        inputs=[], outputs=[choose1, choose2, dismiss_reveal, reveal1, reveal2], queue=True
+        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+    )
+
+    choose3_click_event = choose3.click(
+        fn=chosen_one_tie, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
+    ).then(
+        lambda *args: (
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
+        ),
+        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+    )
+
+    choose4_click_event = choose4.click(
+        fn=chosen_one_suck, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
+    ).then(
+        lambda *args: (
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
+        ),
+        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
     )
 
     dismiss_click_event = dismiss_reveal.click(
         lambda *args: (
             gr.update(visible=True, interactive=True),
             gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=False),
@@ -316,7 +352,7 @@ with gr.Blocks() as arena:
             None,
             None,
         ),
-        inputs=[], outputs=[message, choose1, choose2, dismiss_reveal, clear, submit, reveal1, reveal2, chatbot1, chatbot2], queue=True
+        inputs=[], outputs=[message, dismiss_reveal, clear, submit, reveal1, reveal2, chatbot1, chatbot2], queue=True
     )
 
 arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
