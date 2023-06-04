@@ -275,10 +275,12 @@ with gr.Blocks() as arena:
             gr.update(visible=False, interactive=False),
             gr.update(visible=True),
             gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
             gr.update(visible=False),
             gr.update(visible=False),
         ),
-        inputs=[message, nudge_msg, system_msg], outputs=[message, choose1, choose2, clear, submit], queue=True
+        inputs=[message, nudge_msg, system_msg], outputs=[message, choose1, choose2, choose3, choose4, clear, submit], queue=True
     )
 
     choose1_click_event = choose1.click(
