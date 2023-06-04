@@ -232,6 +232,9 @@ with gr.Blocks() as arena:
             reveal1 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
             reveal2 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
         with gr.Row():
+            continue1 = gr.Button(value="👈 Continue from left", variant="secondary", visible=False).style(full_width=True)
+            continue2 = gr.Button(value="👉 Continue from right", variant="secondary", visible=False).style(full_width=True)
+        with gr.Row():
             dismiss_reveal = gr.Button(value="Dismiss & Continue", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
             with gr.Column():
@@ -299,8 +302,14 @@ with gr.Blocks() as arena:
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
         ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        inputs=[], outputs=[
+            choose1, choose2, choose3, choose4,
+            dismiss_reveal, continue1, continue2,
+            reveal1, reveal2
+        ], queue=True
     )
 
     choose2_click_event = choose2.click(
@@ -314,8 +323,14 @@ with gr.Blocks() as arena:
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
         ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        inputs=[], outputs=[
+            choose1, choose2, choose3, choose4,
+            dismiss_reveal, continue1, continue2,
+            reveal1, reveal2
+        ], queue=True
     )
 
     choose3_click_event = choose3.click(
@@ -329,8 +344,14 @@ with gr.Blocks() as arena:
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
         ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        inputs=[], outputs=[
+            choose1, choose2, choose3, choose4,
+            dismiss_reveal, continue1, continue2,
+            reveal1, reveal2
+        ], queue=True
     )
 
     choose4_click_event = choose4.click(
@@ -344,8 +365,14 @@ with gr.Blocks() as arena:
             gr.update(visible=True),
             gr.update(visible=True),
             gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=True),
         ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        inputs=[], outputs=[
+            choose1, choose2, choose3, choose4,
+            dismiss_reveal, continue1, continue2,
+            reveal1, reveal2
+        ], queue=True
     )
 
     dismiss_click_event = dismiss_reveal.click(
@@ -360,6 +387,26 @@ with gr.Blocks() as arena:
             None,
         ),
         inputs=[], outputs=[message, dismiss_reveal, clear, submit, reveal1, reveal2, chatbot1, chatbot2], queue=True
+    )
+
+    continue1_click_event = continue1.click(
+        lambda *args: (
+            gr.update(visible=True, interactive=True),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            gr.update(visible=True),
+            gr.update(visible=True),
+            gr.update(visible=False),
+            gr.update(visible=False),
+            None,
+            None,
+        ),
+        inputs=[], outputs=[
+            message,
+            dismiss_reveal, continue1, continue2,
+            clear, submit, reveal1, reveal2, chatbot1, chatbot2
+        ], queue=True
     )
 
 arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
