@@ -28,6 +28,7 @@ class Pipeline:
         self.endpoint_id = endpoint_id
         self.name = name
         self.generation_config = {
+            "max_tokens": 1024,
             "top_k": 40,
             "top_p": 0.95,
             "temperature": 0.8,
@@ -212,7 +213,7 @@ with gr.Blocks() as arena:
         with gr.Row():
             with gr.Column():
                 rlhf_persona = gr.Textbox(
-                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #CoT #SFW #NSFW #helpful #ethical #creativity", lines=1)
+                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #CoT #SFW #NSFW #helpful #ethical #creativity", lines=2)
                 message = gr.Textbox(
                     label="What do you want to ask?",
                     placeholder="Ask me anything.",
@@ -220,7 +221,7 @@ with gr.Blocks() as arena:
                 )
             with gr.Column():
                 system_msg = gr.Textbox(
-                    start_message, label="System Message", interactive=True, visible=True, placeholder="system prompt", lines=5)
+                    start_message, label="System Message", interactive=True, visible=True, placeholder="system prompt", lines=8)
 
                 nudge_msg = gr.Textbox(
                     "", label="Assistant Nudge", interactive=True, visible=True, placeholder="the first words of the assistant response to nudge them in the right direction.", lines=2)
@@ -296,10 +297,12 @@ with gr.Blocks() as arena:
             gr.update(visible=False),
             gr.update(visible=True),
             gr.update(visible=True),
+            gr.update(visible=False),
+            gr.update(visible=False),
             None,
             None,
         ),
-        inputs=[], outputs=[message, choose1, choose2, dismiss_reveal, clear, submit, chatbot1, chatbot2], queue=True
+        inputs=[], outputs=[message, choose1, choose2, dismiss_reveal, clear, submit, reveal1, reveal2, chatbot1, chatbot2], queue=True
     )
 
 arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
