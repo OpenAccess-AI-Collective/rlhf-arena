@@ -21,12 +21,26 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 # Get a reference to the table
 table = dynamodb.Table('oaaic_chatbot_arena')
 
+
+def prompt_instruct(system_msg, history):
+    return system_msg.strip() + "\n" + \
+        "\n".join(["\n".join(["### Instruction: "+item[0], "### Response: "+item[1]])
+        for item in history])
+
+
+def prompt_chat(system_msg, history):
+    return system_msg.strip() + "\n" + \
+        "\n".join(["\n".join(["USER: "+item[0], "ASSISTANT: "+item[1]])
+        for item in history])
+
+
 class Pipeline:
     prefer_async = True
 
-    def __init__(self, endpoint_id, name):
+    def __init__(self, endpoint_id, name, prompt_fn):
         self.endpoint_id = endpoint_id
         self.name = name
+        self.prompt_fn = prompt_fn
         self.generation_config = {
             "max_tokens": 1024,
             "top_k": 40,
@@ -37,7 +51,7 @@ class Pipeline:
             "seed": -1,
             "batch_size": 8,
             "threads": -1,
-            "stop": ["</s>", "USER:"],
+            "stop": ["</s>", "USER:", "### Instruction:"],
         }
 
     def __call__(self, prompt):
@@ -79,13 +93,16 @@ class Pipeline:
             # Sleep for 3 seconds between each request
             sleep(3)
 
+    def transform_prompt(self, system_msg, history):
+        return self.prompt_fn(system_msg, history)
+
 
 AVAILABLE_MODELS = {
-    "hermes-13b": "p0zqb2gkcwp0ww",
-    "manticore-13b-chat": "u6tv84bpomhfei",
-    "airoboros-13b": "rglzxnk80660ja",
-    "supercot-13b": "0be7865dwxpwqk",
-    "mpt-7b-instruct": "jpqbvnyluj18b0",
+    "hermes-13b": ("p0zqb2gkcwp0ww", prompt_instruct),
+    "manticore-13b-chat": ("u6tv84bpomhfei", prompt_chat),
+    "airoboros-13b": ("rglzxnk80660ja", prompt_chat),
+    "supercot-13b": ("0be7865dwxpwqk", prompt_instruct),
+    "mpt-7b-instruct": ("jpqbvnyluj18b0", prompt_instruct),
 }
 
 _memoized_models = defaultdict()
@@ -93,7 +110,7 @@ _memoized_models = defaultdict()
 
 def get_model_pipeline(model_name):
     if not _memoized_models.get(model_name):
-        _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name], model_name)
+        _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name][0], model_name, AVAILABLE_MODELS[model_name][1])
     return _memoized_models.get(model_name)
 
 start_message = """- The Assistant is helpful and transparent.
@@ -116,20 +133,17 @@ def chat(history1, history2, system_msg):
     history1 = history1 or []
     history2 = history2 or []
 
-    messages1 = system_msg.strip() + "\n" + \
-                "\n".join(["\n".join(["USER: "+item[0], "ASSISTANT: "+item[1]])
-                           for item in history1])
-    messages2 = system_msg.strip() + "\n" + \
-                "\n".join(["\n".join(["USER: "+item[0], "ASSISTANT: "+item[1]])
-                           for item in history2])
+    random_battle = random.sample(AVAILABLE_MODELS.keys(), 2)
+    model1 = get_model_pipeline(random_battle[0])
+    model2 = get_model_pipeline(random_battle[1])
+
+    messages1 = model1.transform_prompt(system_msg, history1)
+    messages2 = model2.transform_prompt(system_msg, history2)
 
     # remove last space from assistant, some models output a ZWSP if you leave a space
     messages1 = messages1.rstrip()
     messages2 = messages2.rstrip()
 
-    random_battle = random.sample(AVAILABLE_MODELS.keys(), 2)
-    model1 = get_model_pipeline(random_battle[0])
-    model2 = get_model_pipeline(random_battle[1])
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         futures = []
@@ -212,14 +226,14 @@ with gr.Blocks() as arena:
             dismiss_reveal = gr.Button(value="Dismiss & Continue", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
             with gr.Column():
-                rlhf_persona = gr.Textbox(
-                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #CoT #SFW #NSFW #helpful #ethical #creativity", lines=2)
                 message = gr.Textbox(
                     label="What do you want to ask?",
                     placeholder="Ask me anything.",
                     lines=3,
                 )
             with gr.Column():
+                rlhf_persona = gr.Textbox(
+                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #CoT #SFW #NSFW #helpful #ethical #creativity", lines=2)
                 system_msg = gr.Textbox(
                     start_message, label="System Message", interactive=True, visible=True, placeholder="system prompt", lines=8)
 
