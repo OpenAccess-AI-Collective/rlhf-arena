@@ -163,10 +163,10 @@ def chat(history1, history2, system_msg):
     len_tokens_model2 = len(tokens_model2)
     max_tokens = max(len_tokens_model1, len_tokens_model2)
     for i in range(0, max_tokens):
-        if i <= len_tokens_model1:
+        if i < len_tokens_model1:
             answer1 = tokens_model1[i]
             history1[-1][1] += answer1
-        if i <= len_tokens_model2:
+        if i < len_tokens_model2:
             answer2 = tokens_model2[i]
             history2[-1][1] += answer2
         # stream the response
