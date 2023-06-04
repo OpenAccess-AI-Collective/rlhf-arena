@@ -211,6 +211,8 @@ with gr.Blocks() as arena:
                     - Due to limitations of Runpod Serverless, it cannot stream responses immediately
                     - Responses WILL take AT LEAST 30 seconds to respond, probably longer   
                     - For now, this is single turn only
+                    - [💵 Consider Donating on our Patreon](http://patreon.com/OpenAccessAICollective)
+                    - Join us on [Discord](https://discord.gg/PugNNHAF5r) 
                     """)
     with gr.Tab("Chatbot"):
         with gr.Row():
