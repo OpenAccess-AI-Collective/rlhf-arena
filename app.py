@@ -208,6 +208,7 @@ with gr.Blocks() as arena:
         with gr.Column():
             gr.Markdown(f"""
                     ### brought to you by OpenAccess AI Collective
+                    - Checkout out [our writeup on how this was built.](https://medium.com/@winglian/inference-any-llm-with-serverless-in-15-minutes-69eeb548a41d)
                     - This Space runs on CPU only, and uses GGML with GPU support via Runpod Serverless.
                     - Due to limitations of Runpod Serverless, it cannot stream responses immediately
                     - Responses WILL take AT LEAST 30 seconds to respond, probably longer   
