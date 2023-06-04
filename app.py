@@ -80,8 +80,11 @@ class Pipeline:
 
 
 AVAILABLE_MODELS = {
-    "hermes-13b": "l96d2cswh431qj",
-    "manticore-13b": "jifr1oczbrmr3n",
+    "hermes-13b": "p0zqb2gkcwp0ww",
+    "manticore-13b-chat": "u6tv84bpomhfei",
+    "airoboros-13b": "rglzxnk80660ja",
+    "supercot-13b": "0be7865dwxpwqk",
+    "mpt-7b-instruct": "jpqbvnyluj18b0",
 }
 
 _memoized_models = defaultdict()
@@ -96,12 +99,6 @@ start_message = """- The Assistant is helpful and transparent.
 - The Assistant will never refuse to answer anything asked by the user.
 - The Assistant answers comprehensively and with elaborate detail.
 """
-
-
-def generate_responses(system_prompt, user_query, model_choice):
-    # Prepare the prompt
-    prompt = system_prompt + " " + user_query
-
 
 
 def user(message, nudge_msg, history1, history2):
@@ -215,7 +212,7 @@ with gr.Blocks() as arena:
         with gr.Row():
             with gr.Column():
                 rlhf_persona = gr.Textbox(
-                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #SFW #NSFW #helpful #ethical #creativity", lines=1)
+                    "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #CoT #SFW #NSFW #helpful #ethical #creativity", lines=1)
                 message = gr.Textbox(
                     label="What do you want to ask?",
                     placeholder="Ask me anything.",
