@@ -133,7 +133,8 @@ def chat(history1, history2, system_msg):
     history1 = history1 or []
     history2 = history2 or []
 
-    random_battle = random.sample(AVAILABLE_MODELS.keys(), 2)
+    arena_bots = list(AVAILABLE_MODELS.keys())
+    random_battle = arena_bots[0:2]
     model1 = get_model_pipeline(random_battle[0])
     model2 = get_model_pipeline(random_battle[1])
 
