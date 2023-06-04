@@ -134,6 +134,7 @@ def chat(history1, history2, system_msg):
     history2 = history2 or []
 
     arena_bots = list(AVAILABLE_MODELS.keys())
+    random.shuffle(arena_bots)
     random_battle = arena_bots[0:2]
     model1 = get_model_pipeline(random_battle[0])
     model2 = get_model_pipeline(random_battle[1])
