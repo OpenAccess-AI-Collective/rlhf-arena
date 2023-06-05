@@ -205,8 +205,26 @@ chosen_one_second = functools.partial(chosen_one, 2)
 chosen_one_tie = functools.partial(chosen_one, 0)
 chosen_one_suck = functools.partial(chosen_one, 1)
 
+
+def dataset_to_markdown(dataset):
+    # Get column names (dataset features)
+    columns = list(dataset.features.keys())
+    # Start markdown string with table headers
+    markdown_string = "| " + " | ".join(columns) + " |\n"
+    # Add markdown table row separator for headers
+    markdown_string += "| " + " | ".join("---" for _ in columns) + " |\n"
+
+    # Add each row from dataset to the markdown string
+    for i in range(len(dataset)):
+        row = dataset[i]
+        markdown_string += "| " + " | ".join(str(row[column]) for column in columns) + " |\n"
+
+    return markdown_string
+
+
 elo_scores = load_dataset("openaccess-ai-collective/chatbot-arena-elo-scores")
 elo_scores = elo_scores.sort("elo_score")
+
 
 with gr.Blocks() as arena:
     with gr.Row():
@@ -258,10 +276,10 @@ with gr.Blocks() as arena:
     with gr.Tab("Leaderboard"):
         with gr.Column():
             gr.Markdown(f"""
-                    ### TBD
-                    - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
-                    """)
-            gr.DataFrame(elo_scores)
+### TBD
+- This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
+{dataset_to_markdown(elo_scores)}
+""")
     state = gr.State({})
 
     clear.click(lambda: None, None, chatbot1, queue=False)
