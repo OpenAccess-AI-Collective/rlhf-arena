@@ -223,7 +223,7 @@ def dataset_to_markdown(dataset):
 
 
 elo_scores = load_dataset("openaccess-ai-collective/chatbot-arena-elo-scores")
-elo_scores = elo_scores["train"].sort("elo_score")
+elo_scores = elo_scores["train"].sort("elo_score", reverse=True)
 
 
 with gr.Blocks() as arena:

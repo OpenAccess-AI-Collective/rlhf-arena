@@ -177,8 +177,6 @@ def get_last_processed_timestamp():
         ScanIndexForward=False,
         Limit=1
     )
-    print(response)
-    # exit(0)
 
     # If there are no items in the table, return a default timestamp
     if not response['Items']:
@@ -262,10 +260,7 @@ def _backfill_logs():
         )
 
 def main():
-    # _backfill_logs()
-    # _create_elo_logs_table()
     last_processed_timestamp = get_last_processed_timestamp()
-    # last_processed_timestamp = '1970-01-01T00:00:00'
     battles = get_unprocessed_battles(last_processed_timestamp)
 
     elo_scores = {}
@@ -300,10 +295,12 @@ def main():
     for i, j in enumerate(elo_scores):
         j["elo_score"] = float(j["elo_score"])
         elo_scores[i] = j
+    print(elo_scores)
 
-    # Convert the data into a format suitable for Hugging Face Dataset
-    elo_dataset = Dataset.from_list(elo_scores)
-    elo_dataset.push_to_hub("openaccess-ai-collective/chatbot-arena-elo-scores", private=False)
+    if battles:
+        # Convert the data into a format suitable for Hugging Face Dataset
+        elo_dataset = Dataset.from_list(elo_scores)
+        elo_dataset.push_to_hub("openaccess-ai-collective/chatbot-arena-elo-scores", private=False)
 
 
 if __name__ == "__main__":
