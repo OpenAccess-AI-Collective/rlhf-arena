@@ -4,7 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 
 import boto3
-from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.conditions import Attr, Key
+from datasets import Dataset
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
@@ -89,6 +90,10 @@ def _create_elo_logs_table():
                 'AttributeName': 'arena_battle_id',
                 'KeyType': 'HASH'  # Partition key
             },
+            {
+                'AttributeName': 'battle_timestamp',
+                'KeyType': 'RANGE'  # Sort key
+            },
         ],
         AttributeDefinitions=[
             {
@@ -99,6 +104,10 @@ def _create_elo_logs_table():
                 'AttributeName': 'battle_timestamp',
                 'AttributeType': 'S'
             },
+            {
+                'AttributeName': 'all',
+                'AttributeType': 'S'
+            }
         ],
         ProvisionedThroughput={
             'ReadCapacityUnits': 10,
@@ -106,12 +115,16 @@ def _create_elo_logs_table():
         },
         GlobalSecondaryIndexes=[
             {
-                'IndexName': 'BattleTimestampIndex',
+                'IndexName': 'AllTimestampIndex',
                 'KeySchema': [
                     {
-                        'AttributeName': 'battle_timestamp',
+                        'AttributeName': 'all',
                         'KeyType': 'HASH'  # Partition key for the GSI
                     },
+                    {
+                        'AttributeName': 'battle_timestamp',
+                        'KeyType': 'RANGE'  # Sort key for the GSI
+                    }
                 ],
                 'Projection': {
                     'ProjectionType': 'ALL'
@@ -157,36 +170,15 @@ def calculate_elo(rating1, rating2, result, K=32):
 def get_last_processed_timestamp():
     table = dynamodb.Table('elo_logs')
 
-    response = table.update (
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'timestamp',
-                'AttributeType': 'S'
-            },
-        ],
-        GlobalSecondaryIndexUpdates=[
-            {
-                'Create': {
-                    'IndexName': 'TimestampIndex',
-                    'KeySchema': [
-                        {
-                            'AttributeName': 'timestamp',
-                            'KeyType': 'RANGE'
-                        },
-                    ],
-                    'Projection': {
-                        'ProjectionType': 'ALL',
-                    }
-                },
-            },
-        ]
-    )
-
     # Scan the table sorted by timestamp in descending order
-    response = table.scan(
-        Limit=1,
-        ScanIndexForward=False
+    response = table.query(
+        IndexName='AllTimestampIndex',
+        KeyConditionExpression=Key('all').eq('ALL'),
+        ScanIndexForward=False,
+        Limit=1
     )
+    print(response)
+    # exit(0)
 
     # If there are no items in the table, return a default timestamp
     if not response['Items']:
@@ -207,7 +199,8 @@ def log_elo_update(arena_battle_id, battle_timestamp, new_rating1, new_rating2):
             'battle_timestamp': battle_timestamp,  # Use the timestamp of the battle
             'log_timestamp': datetime.now().isoformat(),  # Also store the timestamp of the log for completeness
             'new_rating1': new_rating1,
-            'new_rating2': new_rating2
+            'new_rating2': new_rating2,
+            'all': 'ALL',
         }
     )
 
@@ -238,9 +231,41 @@ def update_elo_score(chatbot_name, new_elo_score):
     )
 
 
+def get_elo_scores():
+    table = dynamodb.Table('elo_scores')
+
+    response = table.scan()
+    data = response['Items']
+
+    return data
+
+
+def _backfill_logs():
+    table = dynamodb.Table('elo_logs')
+
+    # Initialize the scan operation
+    response = table.scan()
+
+    for item in response['Items']:
+        table.update_item(
+            Key={
+                'arena_battle_id': item['arena_battle_id'],
+                'battle_timestamp': item['battle_timestamp']
+            },
+            UpdateExpression="SET #all = :value",
+            ExpressionAttributeNames={
+                '#all': 'all'
+            },
+            ExpressionAttributeValues={
+                ':value': 'ALL'
+            }
+        )
+
 def main():
-    # last_processed_timestamp = get_last_processed_timestamp()
-    last_processed_timestamp = '1970-01-01T00:00:00'
+    # _backfill_logs()
+    # _create_elo_logs_table()
+    last_processed_timestamp = get_last_processed_timestamp()
+    # last_processed_timestamp = '1970-01-01T00:00:00'
     battles = get_unprocessed_battles(last_processed_timestamp)
 
     elo_scores = {}
@@ -262,14 +287,23 @@ def main():
                 elo_result = 0
 
             new_rating1, new_rating2 = calculate_elo(elo_scores[battle['choice1_name']], elo_scores[battle['choice2_name']], elo_result)
+            logging.info(f"{battle['choice1_name']}: {elo_scores[battle['choice1_name']]} -> {new_rating1} | {battle['choice2_name']}: {elo_scores[battle['choice2_name']]} -> {new_rating2}")
             elo_scores[battle['choice1_name']] = new_rating1
             elo_scores[battle['choice2_name']] = new_rating2
             log_elo_update(battle['arena_battle_id'], battle['timestamp'], new_rating1, new_rating2)
-            logging.info(f"{battle['choice1_name']}: {elo_scores[battle['choice1_name']]} -> {new_rating1} | {battle['choice2_name']}: {elo_scores[battle['choice2_name']]} -> {new_rating2}")
             update_elo_score(battle['choice1_name'], new_rating1)
             update_elo_score(battle['choice2_name'], new_rating2)
             elo_scores[battle['choice1_name']] = new_rating1
             elo_scores[battle['choice2_name']] = new_rating2
+
+    elo_scores = get_elo_scores()
+    for i, j in enumerate(elo_scores):
+        j["elo_score"] = float(j["elo_score"])
+        elo_scores[i] = j
+
+    # Convert the data into a format suitable for Hugging Face Dataset
+    elo_dataset = Dataset.from_list(elo_scores)
+    elo_dataset.push_to_hub("openaccess-ai-collective/chatbot-arena-elo-scores", private=False)
 
 
 if __name__ == "__main__":
