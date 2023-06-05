@@ -38,10 +38,11 @@ def prompt_chat(system_msg, history):
 class Pipeline:
     prefer_async = True
 
-    def __init__(self, endpoint_id, name, prompt_fn):
+    def __init__(self, endpoint_id, name, prompt_fn, stop_tokens=None):
         self.endpoint_id = endpoint_id
         self.name = name
         self.prompt_fn = prompt_fn
+        stop_tokens = stop_tokens or []
         self.generation_config = {
             "max_new_tokens": 1024,
             "top_k": 40,
@@ -52,7 +53,7 @@ class Pipeline:
             "seed": -1,
             "batch_size": 8,
             "threads": -1,
-            "stop": ["</s>", "USER:", "### Instruction:"],
+            "stop": ["</s>", "USER:", "### Instruction:"] + stop_tokens,
         }
 
     def __call__(self, prompt):
@@ -102,7 +103,7 @@ AVAILABLE_MODELS = {
     "hermes-13b": ("p0zqb2gkcwp0ww", prompt_instruct),
     "manticore-13b-chat": ("u6tv84bpomhfei", prompt_chat),
     "airoboros-13b": ("rglzxnk80660ja", prompt_chat),
-    "supercot-13b": ("0be7865dwxpwqk", prompt_instruct),
+    "supercot-13b": ("0be7865dwxpwqk", prompt_instruct, ["Instruction:"]),
     "mpt-7b-instruct": ("jpqbvnyluj18b0", prompt_instruct),
 }
 
@@ -111,7 +112,10 @@ _memoized_models = defaultdict()
 
 def get_model_pipeline(model_name):
     if not _memoized_models.get(model_name):
-        _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name][0], model_name, AVAILABLE_MODELS[model_name][1])
+        kwargs = {}
+        if len(AVAILABLE_MODELS[model_name]) >= 3:
+            kwargs["stop_tokens"] = AVAILABLE_MODELS[model_name][2]
+        _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name][0], model_name, AVAILABLE_MODELS[model_name][1], **kwargs)
     return _memoized_models.get(model_name)
 
 start_message = """- The Assistant is helpful and transparent.
