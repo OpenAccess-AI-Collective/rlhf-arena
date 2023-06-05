@@ -13,6 +13,7 @@ from time import sleep
 import boto3
 import gradio as gr
 import requests
+from datasets import load_dataset
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
@@ -204,6 +205,9 @@ chosen_one_second = functools.partial(chosen_one, 2)
 chosen_one_tie = functools.partial(chosen_one, 0)
 chosen_one_suck = functools.partial(chosen_one, 1)
 
+elo_scores = load_dataset("openaccess-ai-collective/chatbot-arena-elo-scores")
+elo_scores = elo_scores.sort("elo_score")
+
 with gr.Blocks() as arena:
     with gr.Row():
         with gr.Column():
@@ -257,6 +261,7 @@ with gr.Blocks() as arena:
                     ### TBD
                     - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
                     """)
+            gr.DataFrame(elo_scores)
     state = gr.State({})
 
     clear.click(lambda: None, None, chatbot1, queue=False)
