@@ -43,7 +43,7 @@ class Pipeline:
         self.name = name
         self.prompt_fn = prompt_fn
         self.generation_config = {
-            "max_tokens": 1536,
+            "max_new_tokens": 1024,
             "top_k": 40,
             "top_p": 0.95,
             "temperature": 0.8,
