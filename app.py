@@ -278,6 +278,7 @@ with gr.Blocks() as arena:
             gr.Markdown(f"""
 ### TBD
 - This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
+
 {dataset_to_markdown(elo_scores)}
 """)
     state = gr.State({})
