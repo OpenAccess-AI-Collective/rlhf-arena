@@ -209,8 +209,26 @@ chosen_one_second = functools.partial(chosen_one, 2)
 chosen_one_tie = functools.partial(chosen_one, 0)
 chosen_one_suck = functools.partial(chosen_one, 1)
 
+leaderboard_intro = """### TBD
+- This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
 
-def dataset_to_markdown(dataset):
+"""
+elo_scores = load_dataset("openaccess-ai-collective/chatbot-arena-elo-scores")
+elo_scores = elo_scores["train"].sort("elo_score", reverse=True)
+
+
+def refresh_md():
+    return leaderboard_intro + "\n" + dataset_to_markdown()
+
+
+def fetch_elo_scores():
+    elo_scores = load_dataset("openaccess-ai-collective/chatbot-arena-elo-scores")
+    elo_scores = elo_scores["train"].sort("elo_score", reverse=True)
+    return elo_scores
+
+
+def dataset_to_markdown():
+    dataset = fetch_elo_scores()
     # Get column names (dataset features)
     columns = list(dataset.features.keys())
     # Start markdown string with table headers
@@ -224,10 +242,6 @@ def dataset_to_markdown(dataset):
         markdown_string += "| " + " | ".join(str(row[column]) for column in columns) + " |\n"
 
     return markdown_string
-
-
-elo_scores = load_dataset("openaccess-ai-collective/chatbot-arena-elo-scores")
-elo_scores = elo_scores["train"].sort("elo_score", reverse=True)
 
 
 with gr.Blocks() as arena:
@@ -279,13 +293,13 @@ with gr.Blocks() as arena:
             clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
     with gr.Tab("Leaderboard"):
         with gr.Column():
-            gr.Markdown(f"""
-### TBD
-- This is very much a work-in-progress, if you'd like to help build this out, join us on [Discord](https://discord.gg/QYF8QrtEUm)
-
-{dataset_to_markdown(elo_scores)}
+            leaderboard_markdown = gr.Markdown(f"""{leaderboard_intro}
+{dataset_to_markdown()}
 """)
+            refresh = gr.Button(value="Refresh Leaderboard", variant="secondary").style(full_width=True)
     state = gr.State({})
+
+    refresh.click(fn=refresh_md, inputs=[], outputs=refresh)
 
     clear.click(lambda: None, None, chatbot1, queue=False)
     clear.click(lambda: None, None, chatbot2, queue=False)
