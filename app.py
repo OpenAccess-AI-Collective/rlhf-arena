@@ -185,6 +185,7 @@ def chat(history1, history2, system_msg):
     model1_res = model1(messages1)  # type: Generator[str, None, None]
     model2_res = model2(messages2)  # type: Generator[str, None, None]
     res = token_generator(model1_res, model2_res, lambda x: x[0]['generated_text'], fillvalue=[{'generated_text': ''}])  # type: Generator[Tuple[str, str], None, None]
+    logging.info({"models": [model1.name, model2.name]})
     for t1, t2 in res:
         if t1 is not None:
             history1[-1][1] += t1
@@ -196,6 +197,8 @@ def chat(history1, history2, system_msg):
 
 
 def chosen_one(label, choice1_history, choice2_history, system_msg, nudge_msg, rlhf_persona, state):
+    if not state:
+        logging.error("missing state!!!")
     # Generate a uuid for each submission
     arena_battle_id = str(uuid.uuid4())
 
