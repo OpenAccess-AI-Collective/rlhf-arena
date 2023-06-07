@@ -268,6 +268,7 @@ with gr.Blocks() as arena:
                     - Responses may not stream immediately due to cold starts on Serverless.
                     - Some responses WILL take AT LEAST 20 seconds to respond   
                     - For now, this is single turn only
+                    - Responses from the Arena will be used for building reward models. These reward models can be bucketed by Personas.
                     - [💵 Consider Donating on our Patreon](http://patreon.com/OpenAccessAICollective)
                     - Join us on [Discord](https://discord.gg/PugNNHAF5r) 
                     """)
