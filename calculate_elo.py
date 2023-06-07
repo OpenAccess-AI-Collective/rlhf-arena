@@ -266,7 +266,7 @@ def main():
     elo_scores = {}
 
     for battle in battles:
-        if battle['label'] in {0, 1, 2}:
+        if battle['label'] in {-1, 0, 1, 2}:
             outcome = battle['label']
             for chatbot_name in [battle['choice1_name'], battle['choice2_name']]:
                 if chatbot_name not in elo_scores:
@@ -274,7 +274,7 @@ def main():
             # 1: This means that the first player (or team) won the match.
             # 0.5: This means that the match ended in a draw.
             # 0: This means that the first player (or team) lost the match.
-            if outcome == 0:
+            if outcome == 0 or outcome == -1:
                 elo_result = 0.5
             elif outcome == 1:
                 elo_result = 1
