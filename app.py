@@ -20,6 +20,7 @@ import requests
 from datasets import load_dataset
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Create a DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
@@ -310,7 +311,7 @@ with gr.Blocks() as arena:
         with gr.Row():
             arena_submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
             arena_clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
-        state = gr.State({})
+        arena_state = gr.State({})
 
         arena_clear.click(lambda: None, None, arena_chatbot1, queue=False)
         arena_clear.click(lambda: None, None, arena_chatbot2, queue=False)
@@ -327,7 +328,7 @@ with gr.Blocks() as arena:
         ).then(
             fn=user, inputs=[arena_message, arena_nudge_msg, arena_chatbot1, arena_chatbot2], outputs=[arena_message, arena_nudge_msg, arena_chatbot1, arena_chatbot2], queue=True
         ).then(
-            fn=chat, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg], outputs=[arena_chatbot1, arena_chatbot2, arena_message, reveal1, reveal2, state], queue=True
+            fn=chat, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg], outputs=[arena_chatbot1, arena_chatbot2, arena_message, reveal1, reveal2, arena_state], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=False, interactive=False),
@@ -342,7 +343,7 @@ with gr.Blocks() as arena:
         )
 
         choose1_click_event = choose1.click(
-            fn=chosen_one_first, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+            fn=chosen_one_first, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, arena_state], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=False),
@@ -357,7 +358,7 @@ with gr.Blocks() as arena:
         )
 
         choose2_click_event = choose2.click(
-            fn=chosen_one_second, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+            fn=chosen_one_second, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, arena_state], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=False),
@@ -372,7 +373,7 @@ with gr.Blocks() as arena:
         )
 
         choose3_click_event = choose3.click(
-            fn=chosen_one_tie, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+            fn=chosen_one_tie, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, arena_state], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=False),
@@ -387,7 +388,7 @@ with gr.Blocks() as arena:
         )
 
         choose4_click_event = choose4.click(
-            fn=chosen_one_suck, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+            fn=chosen_one_suck, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, arena_state], outputs=[], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=False),
