@@ -7,8 +7,12 @@ import re
 import traceback
 import uuid
 import datetime
+from collections import deque
+import itertools
+
 from collections import defaultdict
 from time import sleep
+from typing import Generator, Tuple
 
 import boto3
 import gradio as gr
@@ -56,7 +60,7 @@ class Pipeline:
             "stop": ["</s>", "USER:", "### Instruction:"] + stop_tokens,
         }
 
-    def __call__(self, prompt):
+    def __call__(self, prompt) -> Generator[str, None, None]:
         input = self.generation_config.copy()
         input["prompt"] = prompt
 
@@ -71,12 +75,26 @@ class Pipeline:
 
         if response.status_code == 200:
             data = response.json()
-            status = data.get('status')
-            if status == 'COMPLETED':
-                return [{"generated_text": data["output"]}]
-            else:
-                task_id = data.get('id')
-                return self.poll_for_status(task_id)
+            task_id = data.get('id')
+            return self.stream_output(task_id)
+
+    def stream_output(self,task_id) -> Generator[str, None, None]:
+        url = f"https://api.runpod.ai/v2/{self.endpoint_id}/stream/{task_id}"
+        headers = {
+            "Authorization": f"Bearer {os.environ['RUNPOD_AI_API_KEY']}"
+        }
+
+        while True:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                yield [{"generated_text": "".join([s["output"] for s in data["stream"]])}]
+                if data.get('status') == 'COMPLETED':
+                    return
+            elif response.status_code >= 400:
+                logging.error(response.json())
+            # Sleep for 0.5 seconds between each request
+            sleep(0.5)
 
     def poll_for_status(self, task_id):
         url = f"https://api.runpod.ai/v2/{self.endpoint_id}/status/{task_id}"
@@ -134,6 +152,19 @@ def user(message, nudge_msg, history1, history2):
     return "", nudge_msg, history1, history2
 
 
+def token_generator(generator1, generator2, mapping_fn=None, fillvalue=None):
+    if not fillvalue:
+        fillvalue = ''
+    if not mapping_fn:
+        mapping_fn = lambda x: x
+    for output1, output2 in itertools.zip_longest(generator1, generator2, fillvalue=fillvalue):
+        tokens1 = re.findall(r'\s*\S+\s*', mapping_fn(output1))
+        tokens2 = re.findall(r'\s*\S+\s*', mapping_fn(output2))
+
+        for token1, token2 in itertools.zip_longest(tokens1, tokens2, fillvalue=''):
+            yield token1, token2
+
+
 def chat(history1, history2, system_msg):
     history1 = history1 or []
     history2 = history2 or []
@@ -151,34 +182,17 @@ def chat(history1, history2, system_msg):
     messages1 = messages1.rstrip()
     messages2 = messages2.rstrip()
 
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        futures = []
-        futures.append(executor.submit(model1, messages1))
-        futures.append(executor.submit(model2, messages2))
-
-    # Wait for all threads to finish...
-    for future in concurrent.futures.as_completed(futures):
-        # If desired, you can check for exceptions here...
-        if future.exception() is not None:
-            print('Exception: {}'.format(future.exception()))
-            traceback.print_exception(type(future.exception()), future.exception(), future.exception().__traceback__)
-
-    tokens_model1 = re.findall(r'\s*\S+\s*', futures[0].result()[0]['generated_text'])
-    tokens_model2 = re.findall(r'\s*\S+\s*', futures[1].result()[0]['generated_text'])
-    len_tokens_model1 = len(tokens_model1)
-    len_tokens_model2 = len(tokens_model2)
-    max_tokens = max(len_tokens_model1, len_tokens_model2)
-    for i in range(0, max_tokens):
-        if i < len_tokens_model1:
-            answer1 = tokens_model1[i]
-            history1[-1][1] += answer1
-        if i < len_tokens_model2:
-            answer2 = tokens_model2[i]
-            history2[-1][1] += answer2
+    model1_res = model1(messages1)  # type: Generator[str, None, None]
+    model2_res = model2(messages2)  # type: Generator[str, None, None]
+    res = token_generator(model1_res, model2_res, lambda x: x[0]['generated_text'], fillvalue=[{'generated_text': ''}])  # type: Generator[Tuple[str, str], None, None]
+    for t1, t2 in res:
+        if t1 is not None:
+            history1[-1][1] += t1
+        if t2 is not None:
+            history2[-1][1] += t2
         # stream the response
         yield history1, history2, "", gr.update(value=random_battle[0]), gr.update(value=random_battle[1]), {"models": [model1.name, model2.name]}
-        sleep(0.15)
+        sleep(0.2)
 
 
 def chosen_one(label, choice1_history, choice2_history, system_msg, nudge_msg, rlhf_persona, state):
