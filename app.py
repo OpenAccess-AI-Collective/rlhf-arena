@@ -93,8 +93,6 @@ class Pipeline:
                     return
             elif response.status_code >= 400:
                 logging.error(response.json())
-            # Sleep for 0.5 seconds between each request
-            sleep(0.5)
 
     def poll_for_status(self, task_id):
         url = f"https://api.runpod.ai/v2/{self.endpoint_id}/status/{task_id}"
@@ -122,6 +120,7 @@ AVAILABLE_MODELS = {
     "manticore-13b-chat": ("u6tv84bpomhfei", prompt_chat),
     "airoboros-13b": ("rglzxnk80660ja", prompt_chat),
     "wizard-vicuna-13b": ("9vvpikt4ttyqos", prompt_chat),
+    "lmsys-vicuna-13b": ("2nlb32ydkaz6yd", prompt_chat),
     "supercot-13b": ("0be7865dwxpwqk", prompt_instruct, ["Instruction:"]),
     "mpt-7b-instruct": ("jpqbvnyluj18b0", prompt_instruct),
 }
