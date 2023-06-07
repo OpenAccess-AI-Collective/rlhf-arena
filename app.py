@@ -121,6 +121,7 @@ AVAILABLE_MODELS = {
     "hermes-13b": ("p0zqb2gkcwp0ww", prompt_instruct),
     "manticore-13b-chat": ("u6tv84bpomhfei", prompt_chat),
     "airoboros-13b": ("rglzxnk80660ja", prompt_chat),
+    "wizard-vicuna-13b": ("9vvpikt4ttyqos", prompt_chat),
     "supercot-13b": ("0be7865dwxpwqk", prompt_instruct, ["Instruction:"]),
     "mpt-7b-instruct": ("jpqbvnyluj18b0", prompt_instruct),
 }
@@ -265,8 +266,8 @@ with gr.Blocks() as arena:
                     ### brought to you by OpenAccess AI Collective
                     - Checkout out [our writeup on how this was built.](https://medium.com/@winglian/inference-any-llm-with-serverless-in-15-minutes-69eeb548a41d)
                     - This Space runs on CPU only, and uses GGML with GPU support via Runpod Serverless.
-                    - Due to limitations of Runpod Serverless, it cannot stream responses immediately
-                    - Responses WILL take AT LEAST 30 seconds to respond, probably longer   
+                    - Responses may not stream immediately due to cold starts on Serverless.
+                    - Some responses WILL take AT LEAST 20 seconds to respond   
                     - For now, this is single turn only
                     - [💵 Consider Donating on our Patreon](http://patreon.com/OpenAccessAICollective)
                     - Join us on [Discord](https://discord.gg/PugNNHAF5r) 
