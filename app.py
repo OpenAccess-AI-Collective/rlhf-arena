@@ -314,7 +314,7 @@ with gr.Blocks() as arena:
             refresh = gr.Button(value="Refresh Leaderboard", variant="secondary").style(full_width=True)
     state = gr.State({})
 
-    refresh.click(fn=refresh_md, inputs=[], outputs=refresh)
+    refresh.click(fn=refresh_md, inputs=[], outputs=[leaderboard_markdown])
 
     clear.click(lambda: None, None, chatbot1, queue=False)
     clear.click(lambda: None, None, chatbot2, queue=False)
