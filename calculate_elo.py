@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 from decimal import Decimal
+from typing import List
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
@@ -261,8 +262,8 @@ def _backfill_logs():
 
 def main():
     last_processed_timestamp = get_last_processed_timestamp()
-    battles = get_unprocessed_battles(last_processed_timestamp)
-
+    battles: List[dict] = get_unprocessed_battles(last_processed_timestamp)
+    battles = sorted(battles, key=lambda x: x['timestamp'])
     elo_scores = {}
 
     for battle in battles:

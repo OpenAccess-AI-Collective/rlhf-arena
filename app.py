@@ -123,6 +123,7 @@ AVAILABLE_MODELS = {
     "lmsys-vicuna-13b": ("2nlb32ydkaz6yd", prompt_chat),
     "supercot-13b": ("0be7865dwxpwqk", prompt_instruct, ["Instruction:"]),
     "mpt-7b-instruct": ("jpqbvnyluj18b0", prompt_instruct),
+    "guanaco-13b": ("yxl8w98z017mw2", prompt_instruct),
 }
 
 _memoized_models = defaultdict()
@@ -275,15 +276,15 @@ with gr.Blocks() as arena:
                     - [💵 Consider Donating on our Patreon](http://patreon.com/OpenAccessAICollective)
                     - Join us on [Discord](https://discord.gg/PugNNHAF5r) 
                     """)
-    with gr.Tab("Chatbot"):
+    with gr.Tab("Chatbot Arena"):
         with gr.Row():
             with gr.Column():
-                chatbot1 = gr.Chatbot()
+                arena_chatbot1 = gr.Chatbot(label="Chatbot A")
             with gr.Column():
-                chatbot2 = gr.Chatbot()
+                arena_chatbot2 = gr.Chatbot(label="Chatbot B")
         with gr.Row():
-            choose1 = gr.Button(value="👈 Prefer left", variant="secondary", visible=False).style(full_width=True)
-            choose2 = gr.Button(value="👉 Prefer right", variant="secondary", visible=False).style(full_width=True)
+            choose1 = gr.Button(value="👈 Prefer left (A)", variant="secondary", visible=False).style(full_width=True)
+            choose2 = gr.Button(value="👉 Prefer right (B)", variant="secondary", visible=False).style(full_width=True)
             choose3 = gr.Button(value="🤝 Tie", variant="secondary", visible=False).style(full_width=True)
             choose4 = gr.Button(value="👉 Both are bad", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
@@ -293,133 +294,132 @@ with gr.Blocks() as arena:
             dismiss_reveal = gr.Button(value="Dismiss & Continue", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
             with gr.Column():
-                message = gr.Textbox(
+                arena_message = gr.Textbox(
                     label="What do you want to ask?",
                     placeholder="Ask me anything.",
                     lines=3,
                 )
             with gr.Column():
-                rlhf_persona = gr.Textbox(
+                arena_rlhf_persona = gr.Textbox(
                     "", label="Persona Tags", interactive=True, visible=True, placeholder="Tell us about how you are judging the quality. ex: #CoT #SFW #NSFW #helpful #ethical #creativity", lines=2)
-                system_msg = gr.Textbox(
+                arena_system_msg = gr.Textbox(
                     start_message, label="System Message", interactive=True, visible=True, placeholder="system prompt", lines=8)
 
-                nudge_msg = gr.Textbox(
+                arena_nudge_msg = gr.Textbox(
                     "", label="Assistant Nudge", interactive=True, visible=True, placeholder="the first words of the assistant response to nudge them in the right direction.", lines=2)
         with gr.Row():
-            submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
-            clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
+            arena_submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
+            arena_clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
+        state = gr.State({})
+
+        arena_clear.click(lambda: None, None, arena_chatbot1, queue=False)
+        arena_clear.click(lambda: None, None, arena_chatbot2, queue=False)
+        arena_clear.click(lambda: None, None, arena_message, queue=False)
+        arena_clear.click(lambda: None, None, arena_nudge_msg, queue=False)
+
+        submit_click_event = arena_submit.click(
+            lambda *args: (
+                gr.update(visible=False, interactive=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            ),
+            inputs=[], outputs=[arena_message, arena_clear, arena_submit], queue=True
+        ).then(
+            fn=user, inputs=[arena_message, arena_nudge_msg, arena_chatbot1, arena_chatbot2], outputs=[arena_message, arena_nudge_msg, arena_chatbot1, arena_chatbot2], queue=True
+        ).then(
+            fn=chat, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg], outputs=[arena_chatbot1, arena_chatbot2, arena_message, reveal1, reveal2, state], queue=True
+        ).then(
+            lambda *args: (
+                gr.update(visible=False, interactive=False),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            ),
+            inputs=[arena_message, arena_nudge_msg, arena_system_msg], outputs=[arena_message, choose1, choose2, choose3, choose4, arena_clear, arena_submit], queue=True
+        )
+
+        choose1_click_event = choose1.click(
+            fn=chosen_one_first, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+        ).then(
+            lambda *args: (
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True),
+            ),
+            inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        )
+
+        choose2_click_event = choose2.click(
+            fn=chosen_one_second, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+        ).then(
+            lambda *args: (
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True),
+            ),
+            inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        )
+
+        choose3_click_event = choose3.click(
+            fn=chosen_one_tie, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+        ).then(
+            lambda *args: (
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True),
+            ),
+            inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        )
+
+        choose4_click_event = choose4.click(
+            fn=chosen_one_suck, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_nudge_msg, arena_rlhf_persona, state], outputs=[], queue=True
+        ).then(
+            lambda *args: (
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=True),
+            ),
+            inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
+        )
+
+        dismiss_click_event = dismiss_reveal.click(
+            lambda *args: (
+                gr.update(visible=True, interactive=True),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=True),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                None,
+                None,
+            ),
+            inputs=[], outputs=[arena_message, dismiss_reveal, arena_clear, arena_submit, reveal1, reveal2, arena_chatbot1, arena_chatbot2], queue=True
+        )
     with gr.Tab("Leaderboard"):
         with gr.Column():
             leaderboard_markdown = gr.Markdown(f"""{leaderboard_intro}
 {dataset_to_markdown()}
 """)
-            refresh = gr.Button(value="Refresh Leaderboard", variant="secondary").style(full_width=True)
-    state = gr.State({})
-
-    refresh.click(fn=refresh_md, inputs=[], outputs=[leaderboard_markdown])
-
-    clear.click(lambda: None, None, chatbot1, queue=False)
-    clear.click(lambda: None, None, chatbot2, queue=False)
-    clear.click(lambda: None, None, message, queue=False)
-    clear.click(lambda: None, None, nudge_msg, queue=False)
-
-    submit_click_event = submit.click(
-        lambda *args: (
-            gr.update(visible=False, interactive=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-        ),
-        inputs=[], outputs=[message, clear, submit], queue=True
-    ).then(
-        fn=user, inputs=[message, nudge_msg, chatbot1, chatbot2], outputs=[message, nudge_msg, chatbot1, chatbot2], queue=True
-    ).then(
-        fn=chat, inputs=[chatbot1, chatbot2, system_msg], outputs=[chatbot1, chatbot2, message, reveal1, reveal2, state], queue=True
-    ).then(
-        lambda *args: (
-            gr.update(visible=False, interactive=False),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=False),
-            gr.update(visible=False),
-        ),
-        inputs=[message, nudge_msg, system_msg], outputs=[message, choose1, choose2, choose3, choose4, clear, submit], queue=True
-    )
-
-    choose1_click_event = choose1.click(
-        fn=chosen_one_first, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
-    ).then(
-        lambda *args: (
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True),
-        ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
-    )
-
-    choose2_click_event = choose2.click(
-        fn=chosen_one_second, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
-    ).then(
-        lambda *args: (
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True),
-        ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
-    )
-
-    choose3_click_event = choose3.click(
-        fn=chosen_one_tie, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
-    ).then(
-        lambda *args: (
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True),
-        ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
-    )
-
-    choose4_click_event = choose4.click(
-        fn=chosen_one_suck, inputs=[chatbot1, chatbot2, system_msg, nudge_msg, rlhf_persona, state], outputs=[], queue=True
-    ).then(
-        lambda *args: (
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=True),
-        ),
-        inputs=[], outputs=[choose1, choose2, choose3, choose4, dismiss_reveal, reveal1, reveal2], queue=True
-    )
-
-    dismiss_click_event = dismiss_reveal.click(
-        lambda *args: (
-            gr.update(visible=True, interactive=True),
-            gr.update(visible=False),
-            gr.update(visible=True),
-            gr.update(visible=True),
-            gr.update(visible=False),
-            gr.update(visible=False),
-            None,
-            None,
-        ),
-        inputs=[], outputs=[message, dismiss_reveal, clear, submit, reveal1, reveal2, chatbot1, chatbot2], queue=True
-    )
+            leaderboad_refresh = gr.Button(value="Refresh Leaderboard", variant="secondary").style(full_width=True)
+        leaderboad_refresh.click(fn=refresh_md, inputs=[], outputs=[leaderboard_markdown])
 
 arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)
