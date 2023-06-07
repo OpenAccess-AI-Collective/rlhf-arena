@@ -1,12 +1,12 @@
 ---
 title: Community ChatBot Arena
-emoji: 🏃
-colorFrom: yellow
-colorTo: blue
+emoji: 🤖⚔️🤖
+colorFrom: blue
+colorTo: yellow
 sdk: gradio
 sdk_version: 3.33.1
 app_file: app.py
-pinned: false
+pinned: True
 license: apache-2.0
 ---
 
