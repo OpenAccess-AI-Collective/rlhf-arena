@@ -138,8 +138,8 @@ AVAILABLE_MODELS = {
 }
 
 OAAIC_MODELS = [
-    "manticore-13b-chat",
     "minotaur-13b",
+    "manticore-13b-chat",
     # "minotaur-mpt-7b",
 ]
 OAAIC_MODELS_ROLEPLAY = {
