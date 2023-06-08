@@ -57,9 +57,9 @@ class Pipeline:
         self.generation_config = {
             "max_new_tokens": 1024,
             "top_k": 40,
-            "top_p": 0.95,
-            "temperature": 0.8,
-            "repetition_penalty": 1.1,
+            "top_p": 0.90,
+            "temperature": 0.72,
+            "repetition_penalty": 1.22,
             "last_n_tokens": 64,
             "seed": -1,
             "batch_size": 8,
