@@ -304,7 +304,7 @@ def open_user(message, nudge_msg, history):
     return "", nudge_msg, history
 
 
-def open_chat(model_name, history, system_msg, max_new_tokens, temperature, top_p, top_k, repetition_penalty, roleplay=False):
+def open_chat(model_name, history, system_msg, max_new_tokens, temperature, top_p, top_k, repetition_penalty):
     history = history or []
 
     model = get_model_pipeline(model_name)
@@ -332,8 +332,32 @@ def open_chat(model_name, history, system_msg, max_new_tokens, temperature, top_
             sleep(0.01)
 
 
-def open_rp_chat(*args):
-    return open_chat(*args, roleplay=True)[0]
+def open_rp_chat(model_name, history, system_msg, max_new_tokens, temperature, top_p, top_k, repetition_penalty):
+    history = history or []
+
+    model = get_model_pipeline(f"{model_name}-roleplay")
+    config = model.get_generation_config()
+    config["max_new_tokens"] = max_new_tokens
+    config["temperature"] = temperature
+    config["temperature"] = temperature
+    config["top_p"] = top_p
+    config["top_k"] = top_k
+    config["repetition_penalty"] = repetition_penalty
+
+    messages = model.transform_prompt(system_msg, history)
+
+    # remove last space from assistant, some models output a ZWSP if you leave a space
+    messages = messages.rstrip()
+
+    model_res = model(messages, config=config)  # type: Generator[List[Dict[str, str]], None, None]
+    for res in model_res:
+        tokens = re.findall(r'\s*\S+\s*', res[0]['generated_text'])
+        for s in tokens:
+            answer = s
+            history[-1][1] += answer
+            # stream the response
+            yield history, history, ""
+            sleep(0.01)
 
 
 with gr.Blocks() as arena:
