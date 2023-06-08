@@ -12,7 +12,7 @@ import itertools
 
 from collections import defaultdict
 from time import sleep
-from typing import Generator, Tuple
+from typing import Generator, Tuple, List, Dict
 
 import boto3
 import gradio as gr
@@ -40,6 +40,12 @@ def prompt_chat(system_msg, history):
         for item in history])
 
 
+def prompt_roleplay(system_msg, history):
+    return "<|system|>" + system_msg.strip() + "\n" + \
+        "\n".join(["\n".join(["<|user|>"+item[0], "<|model|>"+item[1]])
+        for item in history])
+
+
 class Pipeline:
     prefer_async = True
 
@@ -61,8 +67,11 @@ class Pipeline:
             "stop": ["</s>", "USER:", "### Instruction:"] + stop_tokens,
         }
 
-    def __call__(self, prompt) -> Generator[str, None, None]:
-        input = self.generation_config.copy()
+    def get_generation_config(self):
+        return self.generation_config.copy()
+
+    def __call__(self, prompt, config=None) -> Generator[List[Dict[str, str]], None, None]:
+        input = config if config else self.generation_config.copy()
         input["prompt"] = prompt
 
         if self.prefer_async:
@@ -79,7 +88,7 @@ class Pipeline:
             task_id = data.get('id')
             return self.stream_output(task_id)
 
-    def stream_output(self,task_id) -> Generator[str, None, None]:
+    def stream_output(self,task_id) -> Generator[List[Dict[str, str]], None, None]:
         url = f"https://api.runpod.ai/v2/{self.endpoint_id}/stream/{task_id}"
         headers = {
             "Authorization": f"Bearer {os.environ['RUNPOD_AI_API_KEY']}"
@@ -127,15 +136,23 @@ AVAILABLE_MODELS = {
     "guanaco-13b": ("yxl8w98z017mw2", prompt_instruct),
 }
 
+OAAIC_MODELS = ["manticore-13b-chat"]
+OAAIC_MODELS_ROLEPLAY = {
+    "manticore-13b-chat": ("u6tv84bpomhfei", prompt_roleplay),
+}
+
 _memoized_models = defaultdict()
 
 
 def get_model_pipeline(model_name):
     if not _memoized_models.get(model_name):
         kwargs = {}
-        if len(AVAILABLE_MODELS[model_name]) >= 3:
-            kwargs["stop_tokens"] = AVAILABLE_MODELS[model_name][2]
-        _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name][0], model_name, AVAILABLE_MODELS[model_name][1], **kwargs)
+        if model_name in AVAILABLE_MODELS:
+            if len(AVAILABLE_MODELS[model_name]) >= 3:
+                kwargs["stop_tokens"] = AVAILABLE_MODELS[model_name][2]
+            _memoized_models[model_name] = Pipeline(AVAILABLE_MODELS[model_name][0], model_name, AVAILABLE_MODELS[model_name][1], **kwargs)
+        elif model_name in OAAIC_MODELS_ROLEPLAY:
+            _memoized_models[model_name] = Pipeline(OAAIC_MODELS_ROLEPLAY[model_name][0], model_name, OAAIC_MODELS_ROLEPLAY[model_name][1], **kwargs)
     return _memoized_models.get(model_name)
 
 start_message = """- The Assistant is helpful and transparent.
@@ -167,15 +184,20 @@ def token_generator(generator1, generator2, mapping_fn=None, fillvalue=None):
             yield token1, token2
 
 
-def chat(history1, history2, system_msg):
+def chat(history1, history2, system_msg, state):
     history1 = history1 or []
     history2 = history2 or []
 
-    arena_bots = list(AVAILABLE_MODELS.keys())
-    random.shuffle(arena_bots)
-    random_battle = arena_bots[0:2]
-    model1 = get_model_pipeline(random_battle[0])
-    model2 = get_model_pipeline(random_battle[1])
+    arena_bots = None
+    if state and "models" in state and state['models']:
+        arena_bots = state['models']
+    if not arena_bots:
+        arena_bots = list(AVAILABLE_MODELS.keys())
+        random.shuffle(arena_bots)
+
+    battle = arena_bots[0:2]
+    model1 = get_model_pipeline(battle[0])
+    model2 = get_model_pipeline(battle[1])
 
     messages1 = model1.transform_prompt(system_msg, history1)
     messages2 = model2.transform_prompt(system_msg, history2)
@@ -194,7 +216,8 @@ def chat(history1, history2, system_msg):
         if t2 is not None:
             history2[-1][1] += t2
         # stream the response
-        yield history1, history2, "", gr.update(value=random_battle[0]), gr.update(value=random_battle[1]), {"models": [model1.name, model2.name]}
+        # [arena_chatbot1, arena_chatbot2, arena_message, reveal1, reveal2, arena_state]
+        yield history1, history2, "", gr.update(value=battle[0]), gr.update(value=battle[1]), {"models": [model1.name, model2.name]}
         sleep(0.2)
 
 
@@ -263,6 +286,56 @@ def dataset_to_markdown():
     return markdown_string
 
 
+"""
+OpenAccess AI Chatbots chat
+"""
+
+def open_clear_chat(chat_history_state, chat_message, nudge_msg):
+    chat_history_state = []
+    chat_message = ''
+    nudge_msg = ''
+    return chat_history_state, chat_message, nudge_msg
+
+
+def open_user(message, nudge_msg, history):
+    history = history or []
+    # Append the user's message to the conversation history
+    history.append([message, nudge_msg])
+    return "", nudge_msg, history
+
+
+def open_chat(model_name, history, system_msg, max_new_tokens, temperature, top_p, top_k, repetition_penalty, roleplay=False):
+    history = history or []
+
+    model = get_model_pipeline(model_name)
+    config = model.get_generation_config()
+    config["max_new_tokens"] = max_new_tokens
+    config["temperature"] = temperature
+    config["temperature"] = temperature
+    config["top_p"] = top_p
+    config["top_k"] = top_k
+    config["repetition_penalty"] = repetition_penalty
+
+    messages = model.transform_prompt(system_msg, history)
+
+    # remove last space from assistant, some models output a ZWSP if you leave a space
+    messages = messages.rstrip()
+
+    model_res = model(messages, config=config)  # type: Generator[List[Dict[str, str]], None, None]
+    for res in model_res:
+        tokens = re.findall(r'\s*\S+\s*', res[0]['generated_text'])
+        for s in tokens:
+            answer = s
+            history[-1][1] += answer
+            # stream the response
+            yield history, history, ""
+            sleep(0.01)
+
+
+def open_rp_chat(*args):
+    return open_chat(*args, roleplay=True)[0]
+
+
 with gr.Blocks() as arena:
     with gr.Row():
         with gr.Column():
@@ -311,12 +384,14 @@ with gr.Blocks() as arena:
         with gr.Row():
             arena_submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
             arena_clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
+            # arena_regenerate = gr.Button(value="Regenerate", variant="secondary").style(full_width=False)
         arena_state = gr.State({})
 
         arena_clear.click(lambda: None, None, arena_chatbot1, queue=False)
         arena_clear.click(lambda: None, None, arena_chatbot2, queue=False)
         arena_clear.click(lambda: None, None, arena_message, queue=False)
         arena_clear.click(lambda: None, None, arena_nudge_msg, queue=False)
+        arena_clear.click(lambda: None, None, arena_state, queue=False)
 
         submit_click_event = arena_submit.click(
             lambda *args: (
@@ -328,7 +403,7 @@ with gr.Blocks() as arena:
         ).then(
             fn=user, inputs=[arena_message, arena_nudge_msg, arena_chatbot1, arena_chatbot2], outputs=[arena_message, arena_nudge_msg, arena_chatbot1, arena_chatbot2], queue=True
         ).then(
-            fn=chat, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg], outputs=[arena_chatbot1, arena_chatbot2, arena_message, reveal1, reveal2, arena_state], queue=True
+            fn=chat, inputs=[arena_chatbot1, arena_chatbot2, arena_system_msg, arena_state], outputs=[arena_chatbot1, arena_chatbot2, arena_message, reveal1, reveal2, arena_state], queue=True
         ).then(
             lambda *args: (
                 gr.update(visible=False, interactive=False),
@@ -412,8 +487,16 @@ with gr.Blocks() as arena:
                 gr.update(visible=False),
                 None,
                 None,
+                None,
             ),
-            inputs=[], outputs=[arena_message, dismiss_reveal, arena_clear, arena_submit, reveal1, reveal2, arena_chatbot1, arena_chatbot2], queue=True
+            inputs=[], outputs=[
+                arena_message,
+                dismiss_reveal,
+                arena_clear, arena_submit,
+                reveal1, reveal2,
+                arena_chatbot1, arena_chatbot2,
+                arena_state,
+            ], queue=True
         )
     with gr.Tab("Leaderboard"):
         with gr.Column():
@@ -422,5 +505,49 @@ with gr.Blocks() as arena:
 """)
             leaderboad_refresh = gr.Button(value="Refresh Leaderboard", variant="secondary").style(full_width=True)
         leaderboad_refresh.click(fn=refresh_md, inputs=[], outputs=[leaderboard_markdown])
+    with gr.Tab("OAAIC Chatbots"):
+        gr.Markdown("# GGML Spaces Chatbot Demo")
+        open_model_choice = gr.Dropdown(label="Model", choices=OAAIC_MODELS, value=OAAIC_MODELS[0])
+        open_chatbot = gr.Chatbot()
+        with gr.Row():
+            open_message = gr.Textbox(
+                label="What do you want to chat about?",
+                placeholder="Ask me anything.",
+                lines=3,
+            )
+        with gr.Row():
+            open_submit = gr.Button(value="Send message", variant="secondary").style(full_width=True)
+            open_roleplay = gr.Button(value="Roleplay", variant="secondary").style(full_width=True)
+            open_clear = gr.Button(value="New topic", variant="secondary").style(full_width=False)
+            open_stop = gr.Button(value="Stop", variant="secondary").style(full_width=False)
+        with gr.Row():
+            with gr.Column():
+                open_max_tokens = gr.Slider(20, 1000, label="Max Tokens", step=20, value=300)
+                open_temperature = gr.Slider(0.2, 2.0, label="Temperature", step=0.1, value=0.8)
+                open_top_p = gr.Slider(0.0, 1.0, label="Top P", step=0.05, value=0.95)
+                open_top_k = gr.Slider(0, 100, label="Top K", step=1, value=40)
+                open_repetition_penalty = gr.Slider(0.0, 2.0, label="Repetition Penalty", step=0.1, value=1.1)
+
+        open_system_msg = gr.Textbox(
+            start_message, label="System Message", interactive=True, visible=True, placeholder="system prompt, useful for RP", lines=5)
+
+        open_nudge_msg = gr.Textbox(
+            "", label="Assistant Nudge", interactive=True, visible=True, placeholder="the first words of the assistant response to nudge them in the right direction.", lines=1)
+
+        open_chat_history_state = gr.State()
+        open_clear.click(open_clear_chat, inputs=[open_chat_history_state, open_message, open_nudge_msg], outputs=[open_chat_history_state, open_message, open_nudge_msg], queue=False)
+        open_clear.click(lambda: None, None, open_chatbot, queue=False)
+
+        open_submit_click_event = open_submit.click(
+            fn=open_user, inputs=[open_message, open_nudge_msg, open_chat_history_state], outputs=[open_message, open_nudge_msg, open_chat_history_state], queue=True
+        ).then(
+            fn=open_chat, inputs=[open_model_choice, open_chat_history_state, open_system_msg, open_max_tokens, open_temperature, open_top_p, open_top_k, open_repetition_penalty], outputs=[open_chatbot, open_chat_history_state, open_message], queue=True
+        )
+        open_roleplay_click_event = open_roleplay.click(
+            fn=open_user, inputs=[open_message, open_nudge_msg, open_chat_history_state], outputs=[open_message, open_nudge_msg, open_chat_history_state], queue=True
+        ).then(
+            fn=open_rp_chat, inputs=[open_model_choice, open_chat_history_state, open_system_msg, open_max_tokens, open_temperature, open_top_p, open_top_k, open_repetition_penalty], outputs=[open_chatbot, open_chat_history_state, open_message], queue=True
+        )
+        open_stop.click(fn=None, inputs=None, outputs=None, cancels=[open_submit_click_event, open_roleplay_click_event], queue=False)
 
 arena.queue(concurrency_count=5, max_size=16).launch(debug=True, server_name="0.0.0.0", server_port=7860)

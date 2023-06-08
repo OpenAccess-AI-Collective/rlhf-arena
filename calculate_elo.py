@@ -15,7 +15,7 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
 
 def _create_arena_table():
-    table = dynamodb.create_table(
+    dynamodb.create_table(
         TableName='oaaic_chatbot_arena',
         KeySchema=[
             {
@@ -267,6 +267,7 @@ def main():
     elo_scores = {}
 
     for battle in battles:
+        print(repr(battle))
         if battle['label'] in {-1, 0, 1, 2}:
             outcome = battle['label']
             for chatbot_name in [battle['choice1_name'], battle['choice2_name']]:
