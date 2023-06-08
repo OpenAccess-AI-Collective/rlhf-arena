@@ -136,10 +136,15 @@ AVAILABLE_MODELS = {
     "guanaco-13b": ("yxl8w98z017mw2", prompt_instruct),
 }
 
-OAAIC_MODELS = ["manticore-13b-chat", "minotaur-mpt-7b-chat"]
+OAAIC_MODELS = [
+    "manticore-13b-chat",
+    "minotaur-13b",
+    # "minotaur-mpt-7b",
+]
 OAAIC_MODELS_ROLEPLAY = {
     "manticore-13b-chat-roleplay": ("u6tv84bpomhfei", prompt_roleplay),
-    "minotaur-mpt-7b-chat": ("vm1wcsje126x1x", prompt_chat),
+    "minotaur-13b-roleplay": ("6f1baphxjpjk7b", prompt_roleplay),
+    # "minotaur-mpt-7b": ("vm1wcsje126x1x", prompt_chat),
 }
 
 _memoized_models = defaultdict()
