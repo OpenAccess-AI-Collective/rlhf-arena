@@ -391,7 +391,7 @@ with gr.Blocks() as arena:
             choose1 = gr.Button(value="👈 Prefer left (A)", variant="secondary", visible=False).style(full_width=True)
             choose2 = gr.Button(value="👉 Prefer right (B)", variant="secondary", visible=False).style(full_width=True)
             choose3 = gr.Button(value="🤝 Tie", variant="secondary", visible=False).style(full_width=True)
-            choose4 = gr.Button(value="👉 Both are bad", variant="secondary", visible=False).style(full_width=True)
+            choose4 = gr.Button(value="🤮 Both are bad", variant="secondary", visible=False).style(full_width=True)
         with gr.Row():
             reveal1 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
             reveal2 = gr.Textbox(label="Model Name", value="", interactive=False, visible=False).style(full_width=True)
