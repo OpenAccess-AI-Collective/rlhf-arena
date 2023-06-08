@@ -138,7 +138,7 @@ AVAILABLE_MODELS = {
 
 OAAIC_MODELS = ["manticore-13b-chat"]
 OAAIC_MODELS_ROLEPLAY = {
-    "manticore-13b-chat": ("u6tv84bpomhfei", prompt_roleplay),
+    "manticore-13b-chat-roleplay": ("u6tv84bpomhfei", prompt_roleplay),
 }
 
 _memoized_models = defaultdict()
