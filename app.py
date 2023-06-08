@@ -134,6 +134,7 @@ AVAILABLE_MODELS = {
     "supercot-13b": ("0be7865dwxpwqk", prompt_instruct, ["Instruction:"]),
     "mpt-7b-instruct": ("jpqbvnyluj18b0", prompt_instruct),
     "guanaco-13b": ("yxl8w98z017mw2", prompt_instruct),
+    "minotaur-13b": ("6f1baphxjpjk7b", prompt_chat),
 }
 
 OAAIC_MODELS = [
