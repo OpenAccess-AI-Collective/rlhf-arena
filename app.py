@@ -369,9 +369,9 @@ with gr.Blocks() as arena:
                     - This Space runs on CPU only, and uses GGML with GPU support via Runpod Serverless.
                     - Responses may not stream immediately due to cold starts on Serverless.
                     - Some responses WILL take AT LEAST 20 seconds to respond   
-                    - For now, this is single turn only
+                    - The Chatbot Arena (for now), is single turn only. Responses will be cleared after submission. 
                     - Responses from the Arena will be used for building reward models. These reward models can be bucketed by Personas.
-                    - [💵 Consider Donating on our Patreon](http://patreon.com/OpenAccessAICollective)
+                    - [💵 Consider Donating on our Patreon](http://patreon.com/OpenAccessAICollective) or become a [GitHub Sponsor](https://github.com/sponsors/OpenAccess-AI-Collective)
                     - Join us on [Discord](https://discord.gg/PugNNHAF5r) 
                     """)
     with gr.Tab("Chatbot Arena"):
