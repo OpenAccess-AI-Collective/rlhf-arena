@@ -331,9 +331,8 @@ def open_chat(model_name, history, system_msg, max_new_tokens, temperature, top_
     model_res = model(messages, config=config)  # type: Generator[List[Dict[str, str]], None, None]
     for res in model_res:
         tokens = re.findall(r'\s*\S+\s*', res[0]['generated_text'])
-        for s in tokens:
-            answer = s
-            history[-1][1] += answer
+        for subtoken in tokens:
+            history[-1][1] += subtoken
             # stream the response
             yield history, history, ""
             sleep(0.01)
@@ -359,9 +358,8 @@ def open_rp_chat(model_name, history, system_msg, max_new_tokens, temperature, t
     model_res = model(messages, config=config)  # type: Generator[List[Dict[str, str]], None, None]
     for res in model_res:
         tokens = re.findall(r'\s*\S+\s*', res[0]['generated_text'])
-        for s in tokens:
-            answer = s
-            history[-1][1] += answer
+        for subtoken in tokens:
+            history[-1][1] += subtoken
             # stream the response
             yield history, history, ""
             sleep(0.01)
